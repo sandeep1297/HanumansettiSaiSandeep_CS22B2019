@@ -48,9 +48,20 @@ class PairsAnalyst:
         Calculates the optimal hedge ratio (beta) using OLS regression 
         and computes the resulting spread (residuals).
         """
-        # Y (Dependent variable) and X (Independent variable/Hedge asset)
-        Y = np.log(df_prices[sym1])
-        X = np.log(df_prices[sym2])
+        # Set NumPy to ignore the log(0) warning locally, as we filter for it immediately after.
+        with np.errstate(divide='ignore'):
+            # 1. Safeguard against non-positive prices and immediately drop NaNs 
+            df_clean = df_prices.dropna()
+            df_clean = df_clean[(df_clean[sym1] > 0) & (df_clean[sym2] > 0)].copy()
+
+        # 2. Check for sufficient clean data BEFORE calculation
+        if len(df_clean) < 2:
+            # If less than 2 points remain, OLS cannot run. Return NaN/empty Series.
+            return np.nan, pd.Series(dtype=float) 
+
+        # Log Prices
+        Y = np.log(df_clean[sym1])
+        X = np.log(df_clean[sym2])
 
         # Add a constant (intercept) term to the independent variable for OLS
         X_with_const = sm.add_constant(X)
